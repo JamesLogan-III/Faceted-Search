@@ -1,0 +1,125 @@
+<!DOCTYPE HTML>
+<html ng-app="JobsApp">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge, width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Faceted Search Results" />
+    <meta name="robots" content="index, follow">
+    <title>Faceted Search Results using an API</title>
+    <link rel="icon" href="favicon.ico" type="image/ico" />
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/favicon.png" type="image/png" />
+    <link rel="stylesheet" type="text/css" href="css/lib/bootstrap.min.css" />
+    <link rel="stylesheet" type="text/css" href="css/style.css" />
+    <script src="js/lib/angular.min.js"></script>
+    <script src="js/lib/angular-filter.min.js"></script>
+    <script src="js/lib/angulartics.min.js"></script>
+    <script src="js/lib/angulartics-ga.min.js"></script>
+    <script src="js/lib/$QDecorator.js"></script>
+    <script src="js/lib/dirPagination.js"></script>
+    <script>
+        (function(i, s, o, g, r, a, m) {
+            i['GoogleAnalyticsObject'] = r;
+            i[r] = i[r] || function() {
+                (i[r].q = i[r].q || []).push(arguments)
+            }, i[r].l = 1 * new Date();
+            a = s.createElement(o),
+                m = s.getElementsByTagName(o)[0];
+            a.async = 1;
+            a.src = g;
+            m.parentNode.insertBefore(a, m)
+        })(window, document, 'script', 'https://www.google-analytics.com/analytics.js', 'ga');
+        ga('create', 'UA-XXXXXXXX-X', 'auto');
+    </script>
+</head>
+
+<body ng-controller="JobsController">
+    <header class="site-header"><div class="wrapper"><a href="https://www.smartrecruiters.com" class="site-logo logo"><span title="SmartRecruiters" class="sr-logo"></span></a></div></header>
+
+    <main role="main">
+        <header class="container ">
+            <div class="text-center top-spacing">
+                <h1>SmartRecruiters job listings for </h1>
+                <a href="{{companyURL}}" target="_blank"><img class="img-responsive" src="{{companyImageURL}}"/></a><br/>
+            </div>
+        </header>
+
+        <div class="container">
+            <div class="loading-indicator"></div>
+            <h3>Current Openings <span class="h3Jobcount">{{filteredJobs.length}}</span></h3>
+
+            <!-- Facet-filter / left hand Column -->
+            <div class="col-md-3 category-left">
+                <div id="location.city">
+                    <h4>Location</h4>
+                    <span ng-repeat="(key, value) in getList('location.city') | orderBy: [getCountryName, 'location.city'] | countBy: 'location.country+\'~\'+location.city' | objLimitTo: limitCity">
+                        <label><input id="{{key | spaceless}}" type="checkbox" ng-click="addFacet('location.city', key )" /> {{key.split("~")[0] | uppercase | isoCountry }} - {{key.split("~")[1]}}&nbsp;({{value}})</label><br/>
+                    </span>
+                    <a id="moreCity" ng-hide="getList('location.city').length <= limitCity" class="moreLink" ng-click="loadMore('selectCity')"><span ng-hide="moreCity == true">Less ...</span><span ng-hide="moreCity == false">More ...</span></a>
+                    <hr/>
+                </div>
+
+                <div id="department.label">
+                    <h4>Job Function</h4>
+                    <span ng-repeat="(key, value) in getList('department.label') | orderBy: 'department.label' | countBy: 'department.label' | objLimitTo: limitDepartment ">
+                        <label><input id="{{key | spaceless}}" type="checkbox" ng-click="addFacet('department.label', key )" /> {{key}}&nbsp;-&nbsp;({{value}})</label><br/>
+                    </span>
+                    <a id="moreDepartment" ng-hide="getList('department.label').length <= limitDepartment" class="moreLink" ng-click="loadMore('selectDepartment')"><span ng-hide="moreDepartment == true">Less ...</span><span ng-hide="moreDepartment == false">More ...</span></a>
+                    <hr/>
+                </div>
+
+                <div id="typeOfEmployment.label">
+                    <h4>Job Type</h4>
+                    <span ng-repeat="(key, value) in getList('typeOfEmployment.label') | orderBy: 'typeOfEmployment.label' | countBy: 'typeOfEmployment.label'">
+                        <label><input id="{{key | spaceless}}" type="checkbox" ng-click="addFacet('typeOfEmployment.label', key )" /> {{key}} - ({{value}})</label><br/>
+                    </span>
+                    <hr/>
+                </div>
+
+                <div id="experienceLevel.label">
+                    <h4>Experience</h4>
+                    <span ng-repeat="(key, value) in getList('experienceLevel.label') | orderBy: 'experienceLevel.label' | countBy: 'experienceLevel.label'">
+                        <label><input id="{{key | spaceless}}" type="checkbox" ng-click="addFacet('experienceLevel.label', key )" /> {{key}} - ({{value}})</label><br/>
+                    </span>
+                    <hr/>
+                </div>
+            </div>
+            <!-- Results / Right hand Column -->
+            <div class="col-md-9" id="listTop">
+                <!-- Facet section -->
+                <p class="wrapper-facets" ng-if="selectedFilterValues.length">
+                    <span class="clearAllButton"><a class="clearFacet" ng-click="clearAllFacets()">Clear All</a></span>
+                    <a class="clearFacet" ng-repeat="facet in selectedFilterValues" ng-click="clearFacet(facet)">{{facet.Value}}</a>
+                </p>
+                <!-- Job listing List -->
+                <ul id="jobList">
+                    <li class="jobListing" dir-paginate="job in filteredJobs | orderBy: 'job.releasedDate' | itemsPerPage: jobShowLimit">
+                        <p><strong><a href="https://www.smartrecruiters.com/{{companyCode}}/{{job.id}}" target="_blank">{{job.name}}</a></strong><span class="pull-right">Posted {{job.releasedDate | relativeDate}}</span>
+                            <br/>{{job.location.city}}<span ng-hide="job.location.region == null">,</span> {{job.location.region}} - {{job.location.country | uppercase | isoCountry}} <span ng-hide="job.department.label == 'N / A'">| {{job.department.label}}</span></p>
+                    </li>
+                </ul>
+                <!-- Error / Empty Message  -->
+                <p ng-if="!(filteredJobs | filter:query).length"><strong>Sorry, no results found!</strong></p>
+                <!-- Paging Controls -->
+                <dir-pagination-controls max-size="jobShowLimit" direction-links="true" boundary-links="true" template-url="js/directives/dirPagination.tpl.html"></dir-pagination-controls>
+            </div>
+        </div>
+
+
+        <script src="js/lib/jquery.min.js "></script>
+        <script src="js/lib/bootstrap.min.js "></script>
+        <script src="js/app.js"></script>
+        <script src="js/utils.js"></script>
+        <script src="js/config.js"></script>
+        <script src="js/services/jobService.js "></script>
+        <script src="js/filters/objectLimitTo.js "></script>
+        <script src="js/filters/spaceless.js "></script>
+        <script src="js/lib/iso-3166-country-codes-angular.min.js"></script>
+        <script src="js/lib/angular-relative-date.js"></script>
+        <script src="js/directives/loadingIndicator.js "></script>
+        <script src="js/controller.js "></script>
+    </main>
+</body>
+</html>
